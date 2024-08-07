@@ -1,6 +1,13 @@
 package events
 
-import "time"
+import (
+	"errors"
+	"time"
+)
+
+var (
+	ErrorHandlerAlreadyRegistered = errors.New("handler already registered for event name")
+)
 
 // EventInterface define a interface para um evento.
 type EventInterface interface {
@@ -25,9 +32,6 @@ type EventHandlerInterface interface {
 // EventDispatcherInterface define a interface para um despachante de eventos.
 type EventDispatcherInterface interface {
 
-	// Dispatch despacha um evento para os manipuladores registrados.
-	Dispatch(event EventInterface) error
-
 	// Register registra um manipulador para um nome de evento específico.
 	Register(eventName string, handler EventHandlerInterface) error
 
@@ -39,4 +43,7 @@ type EventDispatcherInterface interface {
 
 	// Clear remove todos os manipuladores registrados.
 	Clear() error
+
+	// Dispatch despacha um evento para os manipuladores registrados.
+	Dispatch(event EventInterface) error
 }
