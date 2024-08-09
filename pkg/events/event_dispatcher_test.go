@@ -143,3 +143,45 @@ func (suite *EventDispatcherTestSuite) TestRegisterTwoHandlersForSameEventIsSucc
 	suite.Equal(suite.dispatcher.handlers[suite.event.GetName()][0], &suite.handler)
 	suite.Equal(suite.dispatcher.handlers[suite.event.GetName()][1], &suite.handler2)
 }
+
+func (suite *EventDispatcherTestSuite) TestRegisterSameHandlerTwiceForSameEventReturnsError() {
+	// Arrange - Given
+
+	// Act - When
+	err := suite.dispatcher.Register(suite.event.GetName(), &suite.handler)
+	err2 := suite.dispatcher.Register(suite.event.GetName(), &suite.handler)
+
+	// Assert - Then
+	suite.NoError(err)
+	suite.Error(err2)
+	suite.EqualError(err2, ErrorHandlerAlreadyRegistered.Error())
+
+	hasEventHandler := suite.dispatcher.Has(suite.event.GetName(), &suite.handler)
+	suite.True(hasEventHandler)
+
+	suite.Len(suite.dispatcher.handlers[suite.event.GetName()], 1)
+	suite.Equal(suite.dispatcher.handlers[suite.event.GetName()][0], &suite.handler)
+}
+
+func (suite *EventDispatcherTestSuite) TestClearIsSuccessful() {
+	// Arrange - Given
+	// Event 1
+	err := suite.dispatcher.Register(suite.event.GetName(), &suite.handler)
+	suite.NoError(err)
+	suite.Len(suite.dispatcher.handlers[suite.event.GetName()], 1)
+
+	err = suite.dispatcher.Register(suite.event.GetName(), &suite.handler2)
+	suite.NoError(err)
+	suite.Len(suite.dispatcher.handlers[suite.event.GetName()], 2)
+
+	//event 2
+	err = suite.dispatcher.Register(suite.event2.GetName(), &suite.handler3)
+	suite.NoError(err)
+	suite.Len(suite.dispatcher.handlers[suite.event2.GetName()], 1)
+
+	// Act - When
+	suite.dispatcher.Clear()
+
+	// Assert - Then
+	suite.Len(suite.dispatcher.handlers, 0)
+}

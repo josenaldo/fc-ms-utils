@@ -63,13 +63,9 @@ func (ed *EventDispatcher) Has(eventName string, handler EventHandlerInterface) 
 }
 
 // Clear remove todos os manipuladores registrados.
-func (ed *EventDispatcher) Clear() error {
+func (ed *EventDispatcher) Clear() {
 
-	for eventName := range ed.handlers {
-		delete(ed.handlers, eventName)
-	}
-
-	return nil
+	ed.handlers = make(map[string][]EventHandlerInterface)
 }
 
 // Dispatch despacha um evento para os manipuladores registrados.
