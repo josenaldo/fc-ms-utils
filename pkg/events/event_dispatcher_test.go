@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -18,16 +19,16 @@ type TestEvent struct {
 	eventDateTime time.Time
 }
 
-func (e *TestEvent) GetName() string {
+func (e TestEvent) GetName() string {
 	return e.Name
 }
 
-func (e *TestEvent) GetPayload() interface{} {
-	return e.Payload
+func (e TestEvent) GetDateTime() time.Time {
+	return e.eventDateTime
 }
 
-func (e *TestEvent) GetDateTime() time.Time {
-	return e.eventDateTime
+func (e TestEvent) GetPayload() interface{} {
+	return e.Payload
 }
 
 type TestEventHandler struct {
@@ -36,6 +37,14 @@ type TestEventHandler struct {
 
 func (h *TestEventHandler) Handle(event EventInterface) {
 	// fmt.Printf("Handling event %s with handler %s\n", event.GetName(), h.name)
+}
+
+type MockHandler struct {
+	mock.Mock
+}
+
+func (h *MockHandler) Handle(event EventInterface) {
+	h.Called(event)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -184,4 +193,115 @@ func (suite *EventDispatcherTestSuite) TestClearIsSuccessful() {
 
 	// Assert - Then
 	suite.Len(suite.dispatcher.handlers, 0)
+}
+
+func (suite *EventDispatcherTestSuite) TestHasReturnsFalseIfHandlerIsNotRegistered() {
+	// Arrange - Given
+
+	// Act - When
+	hasEventHandler := suite.dispatcher.Has(suite.event.GetName(), &suite.handler)
+
+	// Assert - Then
+	suite.False(hasEventHandler)
+}
+
+func (suite *EventDispatcherTestSuite) TestHasReturnsTrueIfHandlerIsRegistered() {
+	// Arrange - Given
+	err := suite.dispatcher.Register(suite.event.GetName(), &suite.handler)
+	suite.NoError(err)
+
+	// Act - When
+	hasEventHandler := suite.dispatcher.Has(suite.event.GetName(), &suite.handler)
+
+	// Assert - Then
+	suite.True(hasEventHandler)
+}
+
+func (suite *EventDispatcherTestSuite) TestEventDispatchIsSuccessful() {
+	// Arrange - Given
+	eventHandler := MockHandler{}
+	eventHandler.On("Handle", suite.event).Return(nil)
+
+	err := suite.dispatcher.Register(suite.event.GetName(), &eventHandler)
+	suite.NoError(err)
+
+	// Act - When
+	err = suite.dispatcher.Dispatch(suite.event)
+
+	// Assert - Then
+	suite.NoError(err)
+	eventHandler.AssertExpectations(suite.T())
+	eventHandler.AssertCalled(suite.T(), "Handle", suite.event)
+	eventHandler.AssertNumberOfCalls(suite.T(), "Handle", 1)
+}
+
+func (suite *EventDispatcherTestSuite) TestEventDispatchWithMultipleHandlersIsSuccessful() {
+	// Arrange - Given
+	eventHandler := MockHandler{}
+	eventHandler2 := MockHandler{}
+
+	eventHandler.On("Handle", suite.event).Return(nil)
+	eventHandler2.On("Handle", suite.event).Return(nil)
+
+	err := suite.dispatcher.Register(suite.event.GetName(), &eventHandler)
+	suite.NoError(err)
+
+	err = suite.dispatcher.Register(suite.event.GetName(), &eventHandler2)
+	suite.NoError(err)
+
+	// Act - When
+	err = suite.dispatcher.Dispatch(suite.event)
+
+	// Assert - Then
+	suite.NoError(err)
+	eventHandler.AssertExpectations(suite.T())
+	eventHandler.AssertCalled(suite.T(), "Handle", suite.event)
+	eventHandler.AssertNumberOfCalls(suite.T(), "Handle", 1)
+
+	eventHandler2.AssertExpectations(suite.T())
+	eventHandler2.AssertCalled(suite.T(), "Handle", suite.event)
+	eventHandler2.AssertNumberOfCalls(suite.T(), "Handle", 1)
+}
+func (suite *EventDispatcherTestSuite) TestEventDispatchWithNoHandlersRegisteredReturnsNil() {
+	// Arrange - Given
+
+	// Act - When
+	err := suite.dispatcher.Dispatch(suite.event)
+
+	// Assert - Then
+	suite.NoError(err)
+}
+
+func (suite *EventDispatcherTestSuite) TestRemoveIsSuccessful() {
+	// Arrange - Given
+	err := suite.dispatcher.Register(suite.event.GetName(), &suite.handler)
+	suite.NoError(err)
+
+	err = suite.dispatcher.Register(suite.event.GetName(), &suite.handler2)
+	suite.NoError(err)
+
+	// Act - When
+	err = suite.dispatcher.Remove(suite.event.GetName(), &suite.handler)
+
+	// Assert - Then
+	suite.NoError(err)
+
+	hasEventHandler := suite.dispatcher.Has(suite.event.GetName(), &suite.handler)
+	suite.False(hasEventHandler)
+
+	hasEventHandler2 := suite.dispatcher.Has(suite.event.GetName(), &suite.handler2)
+	suite.True(hasEventHandler2)
+
+	suite.Len(suite.dispatcher.handlers[suite.event.GetName()], 1)
+	suite.Equal(suite.dispatcher.handlers[suite.event.GetName()][0], &suite.handler2)
+}
+
+func (suite *EventDispatcherTestSuite) TestRemoveReturnNilIfRemoveUnregisteredHandler() {
+	// Arrange - Given
+
+	// Act - When
+	err := suite.dispatcher.Remove(suite.event.GetName(), &suite.handler)
+
+	// Assert - Then
+	suite.NoError(err)
 }

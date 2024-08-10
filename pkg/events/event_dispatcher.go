@@ -27,7 +27,7 @@ func (ed *EventDispatcher) Register(eventName string, handler EventHandlerInterf
 // Remove remove um manipulador registrado para um nome de evento específico.
 func (ed *EventDispatcher) Remove(eventName string, handler EventHandlerInterface) error {
 
-	if ed.Has(eventName, handler) {
+	if !ed.Has(eventName, handler) {
 		return nil
 	}
 
@@ -58,8 +58,6 @@ func (ed *EventDispatcher) Has(eventName string, handler EventHandlerInterface) 
 	}
 
 	return false
-	// return slices.Contains(eventHandlers, handler)
-
 }
 
 // Clear remove todos os manipuladores registrados.
